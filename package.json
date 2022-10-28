@@ -1,0 +1,29 @@
+{
+    "name": "wordle-clone",
+    "version": "1.0.0",
+    "description": "Wordle clone",
+    "main": "index.html",
+    "scripts": {
+        "start": "http-server docs",
+        "words": "node buildwordmap.js"
+    },
+    "repository": {
+        "type": "git",
+        "url": "git+https://github.com/eryu456/wordle-clone"
+    },
+    "author": "b-ryu",
+    "license": "ISC",
+    "bugs": {
+        "url": "https://github.com/eryu456/wordle-clone/issues"
+    },
+    "homepage": "https://github.com/eryu456/wordle-clone#readme",
+    "devDependencies": {
+        "http-server": "^14.1.0",
+        "prettier": "^2.5.1"
+    },
+    "prettier": {
+        "singleQuote": true,
+        "printWidth": 120,
+        "tabWidth": 4
+    }
+}

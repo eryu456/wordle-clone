@@ -1,0 +1,248 @@
+<!DOCTYPE html>
+<html>
+    <head>
+        <style>
+            h1 {
+                font-size: 4vh;
+            }
+            a {
+                text-decoration: none;
+            }
+            a:hover {
+                text-decoration: underline;
+            }
+            label {
+                padding: 5px;
+            }
+            p {
+                font-size: 1.5vh;
+                text-align: center;
+            }
+            button {
+                margin: 10px;
+            }
+            #root {
+                display: flex;
+                flex-direction: column;
+                justify-content: center;
+                align-items: center;
+            }
+            #message {
+                padding: 10px;
+                font-size: 3vh;
+                text-align: center;
+            }
+            .num-input {
+                width: 5vh;
+            }
+            .box {
+                width: 5vh;
+                height: 5vh;
+                text-align: center;
+                font-size: 4vh;
+            }
+            .green {
+                background-color: #a0ff74;
+            }
+            .yellow {
+                background-color: #ffff8f;
+            }
+            .grey {
+                background-color: #989898;
+            }
+        </style>
+        <script type="text/javascript">
+            const WORDLE_WORD_LENGTH = 5;
+            const WORDLE_GUESSES_LIMIT = 6;
+
+            let WORD_MAP;
+
+            function initBoxElements(rows = WORDLE_GUESSES_LIMIT, cols = WORDLE_WORD_LENGTH) {
+                const boardElArr = [];
+                const board = document.getElementById('board');
+                board.innerHTML = '';
+                for (let i = 0; i < rows; ++i) {
+                    const rowElArr = [];
+                    const row = document.createElement('div');
+                    row.setAttribute('class', 'row');
+                    for (let j = 0; j < cols; ++j) {
+                        const box = document.createElement('input');
+                        box.setAttribute('maxlength', '1');
+                        box.setAttribute('class', 'box');
+                        row.appendChild(box);
+                        rowElArr.push(box);
+                    }
+                    board.appendChild(row);
+                    boardElArr.push(rowElArr);
+                }
+                return boardElArr;
+            }
+
+            function on2D(arr, func) {
+                for (let i = 0; i < arr.length; ++i) {
+                    for (let j = 0; j < arr[i].length; ++j) {
+                        func(arr[i][j], i, j);
+                    }
+                }
+            }
+
+            async function getWordMap() {
+                return (await fetch('words.json', { cache: 'force-cache' })).json();
+            }
+
+            function getRandomWord(wordLength) {
+                const wordChoices = Object.keys(WORD_MAP.answers[wordLength]);
+                if (!wordChoices) return; // TODO: error handling?
+                return wordChoices[Math.floor(Math.random() * wordChoices.length)];
+            }
+
+            // function getNumOfLettersInput() {
+            //     return Number(document.getElementById('num-of-letters-input').value);
+            // }
+
+            // function getNumOfGuessesInput() {
+            //     return Number(document.getElementById('num-of-guesses-input').value);
+            // }
+
+            function isLetter(c) {
+                return c.match(/^[a-z,A-Z]$/);
+            }
+
+            function disableBoxes(boxEls, shouldDisable = () => true) {
+                on2D(boxEls, (boxEl, rowIndex, colIndex) => {
+                    boxEl.disabled = shouldDisable(boxEl, rowIndex, colIndex);
+                });
+            }
+
+            function focusBoxEl(el) {
+                el.focus();
+                el.setSelectionRange(0, el.value.length);
+            }
+
+            function setWinMessage() {
+                const messageEl = document.getElementById('message');
+                messageEl.innerHTML = 'you win (good end)';
+            }
+
+            function setLoseMessage(word) {
+                const messageEl = document.getElementById('message');
+                messageEl.innerHTML = `you lose (bad end)<br>word was '${word}' btw`;
+            }
+
+            function clearMessage() {
+                const messageEl = document.getElementById('message');
+                messageEl.innerHTML = '';
+            }
+
+            function guessWord(boxEls, guesses, word, numOfGuesses) {
+                if (boxEls[guesses.length].some((boxEl) => !boxEl.value)) return;
+                const guess = boxEls[guesses.length].map((boxEl) => boxEl.value || '').join('');
+                if (!WORD_MAP.dictionary[word.length][guess]) return;
+                for (let i = 0; i < boxEls[guesses.length].length; ++i) {
+                    const boxEl = boxEls[guesses.length][i];
+                    if (word[i] === boxEl.value) {
+                        boxEl.classList.add('green');
+                    } else if (word.includes(boxEl.value)) {
+                        boxEl.classList.add('yellow');
+                    } else {
+                        boxEl.classList.add('grey');
+                    }
+                }
+                if (guess === word) {
+                    setWinMessage();
+                    disableBoxes(boxEls);
+                    return;
+                }
+                guesses.push(guess);
+                if (numOfGuesses === guesses.length) {
+                    setLoseMessage(word);
+                    disableBoxes(boxEls);
+                    return;
+                }
+                disableBoxes(boxEls, (_, rowIndex) => rowIndex !== guesses.length);
+                focusBoxEl(boxEls[guesses.length][0]);
+            }
+
+            async function wordle() {
+                clearMessage();
+
+                // const numOfLetters = getNumOfLettersInput();
+                // const numOfGuesses = getNumOfGuessesInput();
+                const numOfLetters = WORDLE_WORD_LENGTH;
+                const numOfGuesses = WORDLE_GUESSES_LIMIT;
+
+                const word = getRandomWord(numOfLetters);
+                const boxEls = initBoxElements(numOfGuesses, numOfLetters);
+
+                const guesses = [];
+
+                disableBoxes(boxEls, (_, rowIndex) => rowIndex !== guesses.length);
+                on2D(boxEls, (boxEl) => {
+                    boxEl.addEventListener('input', (e) => {
+                        let val = e.target.value.toLowerCase();
+                        if (!isLetter(val)) val = '';
+                        e.target.value = val;
+                    });
+                    boxEl.addEventListener('keydown', (e) => {
+                        switch (e.key) {
+                            case 'Enter': {
+                                guessWord(boxEls, guesses, word, numOfGuesses);
+                                break;
+                            }
+                            case 'Backspace': {
+                                if (!e.target.value && e.target.previousSibling) focusBoxEl(e.target.previousSibling);
+                                break;
+                            }
+                            default: {
+                                if (
+                                    isLetter(e.key) &&
+                                    !(e.target.selectionEnd - e.target.selectionStart) &&
+                                    e.target.value &&
+                                    e.target.nextSibling
+                                )
+                                    focusBoxEl(e.target.nextSibling);
+                                break;
+                            }
+                        }
+                    });
+                });
+            }
+
+            window.onload = async () => {
+                initBoxElements();
+                WORD_MAP = await getWordMap();
+                wordle();
+            };
+        </script>
+    </head>
+    <body>
+        <div id="root">
+            <h1 id="header"><a href="https://github.com/eryu456/wordle-clone">💩🐢</a></h1>
+            <div id="board"></div>
+            <!-- 
+            <label for="num-of-letters-input" hidden>
+                how many letters u want boss
+                <input type="number" id="num-of-letters-input" class="num-input" min="1" max="10" value="5" />
+            </label>
+            <label for="num-of-guesses-input" hidden>
+                how many guesses u want boss
+                <input type="number" id="num-of-guesses-input" class="num-input" min="1" max="10" value="6" />
+            </label> 
+            -->
+            <button onclick="wordle()">another one</button>
+            <div id="message"></div>
+            <footer>
+                <p>
+                    big mcthankies to <a href="https://www.powerlanguage.co.uk/wordle/">Wordle</a> for providing words
+                    and the whole concept
+                </p>
+                <p>this is a clone made as a personal project, i do not own the idea or the game, please no sue</p>
+                <p>
+                    also big mcthankies to
+                    <a href="https://github.com/dwyl/english-words">List of English Words</a>
+                    for providing words
+                </p>
+            </footer>
+        </div>
+    </body>
+</html>
